@@ -1,0 +1,33 @@
+@page "/family-list"
+@inject FamilyTrip.Frontend.Services.FamilyService FamilyService
+
+<PageTitle>Family List</PageTitle>
+
+<h3>Family List</h3>
+
+@if (families == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (families.Count == 0)
+{
+    <p>No families found.</p>
+}
+else
+{
+    <ul>
+        @foreach (var family in families)
+        {
+            <li>@family.Name (ID: @family.Id)</li>
+        }
+    </ul>
+}
+
+@code {
+    private List<FamilyTrip.Frontend.Models.FamilyDto> families;
+
+    protected override async Task OnInitializedAsync()
+    {
+        families = await FamilyService.GetFamiliesAsync();
+    }
+}

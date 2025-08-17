@@ -1,0 +1,141 @@
+@page "/trips"
+@inject FamilyTrip.Frontend.Services.TripService TripService
+
+<PageTitle>Trips</PageTitle>
+
+<h3>Trips</h3>
+
+<button class="btn btn-primary mb-2" @onclick="ShowCreateTrip">Create Trip</button>
+
+@if (trips == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (trips.Count == 0)
+{
+    <p>No trips found.</p>
+}
+else
+{
+    <ul>
+        @foreach (var trip in trips)
+        {
+            <li>
+                @if (editTrip != null && editTrip.Id == trip.Id)
+                {
+                    <input @bind="editTrip.Name" placeholder="Name" />
+                    <input @bind="editTripDestination" placeholder="Destination" />
+                    <input type="date" @bind-value="editTrip.StartDate" />
+                    <input type="date" @bind-value="editTrip.EndDate" />
+                    <input type="number" @bind="editTrip.OrganizerId" placeholder="OrganizerId" />
+                    <button class="btn btn-success btn-sm" @onclick="@(() => UpdateTrip(trip.Id))">Save</button>
+                    <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Cancel</button>
+                }
+                else
+                {
+                    <span>@trip.Name (ID: @trip.Id) | @trip.StartDate.ToShortDateString() - @trip.EndDate.ToShortDateString() | Organizer: @trip.OrganizerId</span>
+                    <button class="btn btn-warning btn-sm ms-2" @onclick="@(() => EditTrip(trip))">Edit</button>
+                    <button class="btn btn-danger btn-sm ms-1" @onclick="@(() => DeleteTrip(trip.Id))">Delete</button>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@if (showCreateForm)
+{
+    <div class="card p-3 mb-3">
+        <h5>Create Trip</h5>
+        <input @bind="newTrip.Name" placeholder="Name" class="form-control mb-2" />
+        <input @bind="newTripDestination" placeholder="Destination" class="form-control mb-2" />
+        <input type="date" @bind-value="newTrip.StartDate" class="form-control mb-2" />
+        <input type="date" @bind-value="newTrip.EndDate" class="form-control mb-2" />
+        <input type="number" @bind="newTrip.OrganizerId" placeholder="OrganizerId" class="form-control mb-2" />
+        <button class="btn btn-success" @onclick="CreateTrip">Create</button>
+        <button class="btn btn-secondary ms-2" @onclick="HideCreateTrip">Cancel</button>
+    </div>
+}
+
+@code {
+    private List<FamilyTrip.Frontend.Models.TripDto> trips;
+    private FamilyTrip.Frontend.Models.TripDto newTrip = new();
+    private string newTripDestination = string.Empty;
+    private FamilyTrip.Frontend.Models.TripDto? editTrip;
+    private string editTripDestination = string.Empty;
+    private bool showCreateForm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTrips();
+    }
+
+    private async Task LoadTrips()
+    {
+        trips = await TripService.GetTripsAsync();
+    }
+
+    private void ShowCreateTrip()
+    {
+        showCreateForm = true;
+        newTrip = new();
+        newTripDestination = string.Empty;
+    }
+
+    private void HideCreateTrip()
+    {
+        showCreateForm = false;
+    }
+
+    private async Task CreateTrip()
+    {
+        var success = await TripService.CreateTripAsync(newTrip, newTripDestination);
+        if (success)
+        {
+            await LoadTrips();
+            showCreateForm = false;
+        }
+    }
+
+    private void EditTrip(FamilyTrip.Frontend.Models.TripDto trip)
+    {
+        editTrip = new FamilyTrip.Frontend.Models.TripDto
+        {
+            Id = trip.Id,
+            Name = trip.Name,
+            StartDate = trip.StartDate,
+            EndDate = trip.EndDate,
+            OrganizerId = trip.OrganizerId,
+            ParticipantIds = trip.ParticipantIds ?? new List<int>(),
+            ItineraryItemIds = trip.ItineraryItemIds ?? new List<int>(),
+            ExpenseIds = trip.ExpenseIds ?? new List<int>()
+        };
+        editTripDestination = trip.Name; // Placeholder, update if you store destination elsewhere
+    }
+
+    private void CancelEdit()
+    {
+        editTrip = null;
+    }
+
+    private async Task UpdateTrip(int id)
+    {
+        if (editTrip != null)
+        {
+            var success = await TripService.UpdateTripAsync(editTrip);
+            if (success)
+            {
+                await LoadTrips();
+                editTrip = null;
+            }
+        }
+    }
+
+    private async Task DeleteTrip(int id)
+    {
+        var success = await TripService.DeleteTripAsync(id);
+        if (success)
+        {
+            await LoadTrips();
+        }
+    }
+}

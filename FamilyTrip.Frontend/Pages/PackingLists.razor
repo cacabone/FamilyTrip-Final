@@ -1,0 +1,177 @@
+@page "/packing-lists"
+@inject FamilyTrip.Frontend.Services.PackingListService PackingListService
+
+<PageTitle>Packing Lists</PageTitle>
+
+<h3>Packing Lists</h3>
+
+<button class="btn btn-primary mb-2" @onclick="ShowCreateList">Create Packing List</button>
+
+@if (packingLists == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (packingLists.Count == 0)
+{
+    <p>No packing lists found.</p>
+}
+else
+{
+    <ul>
+        @foreach (var list in packingLists)
+        {
+            <li>
+                <b>Packing List ID:</b> @list.Id | <b>Trip ID:</b> @list.TripId | <b>User ID:</b> @list.UserId
+                <button class="btn btn-danger btn-sm ms-2" @onclick="@(() => DeletePackingList(list.Id))">Delete List</button>
+                <ul>
+                    @foreach (var item in list.Items ?? new List<FamilyTrip.Frontend.Models.PackingItemDto>())
+                    {
+                        <li>
+                            @if (editItem != null && editItem.Id == item.Id)
+                            {
+                                <input @bind="editItem.Name" placeholder="Item name" />
+                                <input type="checkbox" @bind="editItem.IsPacked" />
+                                <button class="btn btn-success btn-sm" @onclick="@(() => UpdatePackingItem(item.Id))">Save</button>
+                                <button class="btn btn-secondary btn-sm" @onclick="CancelEditItem">Cancel</button>
+                            }
+                            else
+                            {
+                                <span>@item.Name (@(item.IsPacked ? "Packed" : "Not packed"))</span>
+                                <button class="btn btn-warning btn-sm ms-2" @onclick="@(() => EditPackingItem(item))">Edit</button>
+                                <button class="btn btn-danger btn-sm ms-1" @onclick="@(() => DeletePackingItem(item.Id, list.Id))">Delete</button>
+                            }
+                        </li>
+                    }
+                </ul>
+                <div class="mt-2">
+                    <input @bind="newItemName" placeholder="New item name" class="form-control d-inline w-auto" />
+                    <button class="btn btn-success btn-sm ms-1" @onclick="@(() => AddPackingItem(list.Id))">Add Item</button>
+                </div>
+            </li>
+        }
+    </ul>
+}
+
+@if (showCreateListForm)
+{
+    <div class="card p-3 mb-3">
+        <h5>Create Packing List</h5>
+        <input @bind="newListTripId" placeholder="Trip ID" type="number" class="form-control mb-2" />
+        <input @bind="newListUserId" placeholder="User ID" type="number" class="form-control mb-2" />
+        <button class="btn btn-success" @onclick="CreatePackingList">Create</button>
+        <button class="btn btn-secondary ms-2" @onclick="HideCreateList">Cancel</button>
+    </div>
+}
+
+@code {
+    private List<FamilyTrip.Frontend.Models.PackingListDto> packingLists;
+    private bool showCreateListForm = false;
+    private int newListTripId;
+    private int newListUserId;
+    private string newItemName = string.Empty;
+    private FamilyTrip.Frontend.Models.PackingItemDto? editItem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPackingLists();
+    }
+
+    private async Task LoadPackingLists()
+    {
+        packingLists = await PackingListService.GetPackingListsAsync();
+    }
+
+    private void ShowCreateList()
+    {
+        showCreateListForm = true;
+        newListTripId = 0;
+        newListUserId = 0;
+    }
+
+    private void HideCreateList()
+    {
+        showCreateListForm = false;
+    }
+
+    private async Task CreatePackingList()
+    {
+        var newList = new FamilyTrip.Frontend.Models.PackingListDto
+        {
+            TripId = newListTripId,
+            UserId = newListUserId,
+            Items = new List<FamilyTrip.Frontend.Models.PackingItemDto>()
+        };
+        var created = await PackingListService.CreatePackingListAsync(newList);
+        if (created != null)
+        {
+            await LoadPackingLists();
+            showCreateListForm = false;
+        }
+    }
+
+    private async Task DeletePackingList(int id)
+    {
+        var success = await PackingListService.DeletePackingListAsync(id);
+        if (success)
+        {
+            await LoadPackingLists();
+        }
+    }
+
+    private async Task AddPackingItem(int listId)
+    {
+        if (!string.IsNullOrWhiteSpace(newItemName))
+        {
+            var newItem = new FamilyTrip.Frontend.Models.PackingItemDto
+            {
+                Name = newItemName,
+                IsPacked = false,
+                PackingListId = listId
+            };
+            var created = await PackingListService.CreatePackingItemAsync(newItem);
+            if (created != null)
+            {
+                await LoadPackingLists();
+                newItemName = string.Empty;
+            }
+        }
+    }
+
+    private void EditPackingItem(FamilyTrip.Frontend.Models.PackingItemDto item)
+    {
+        editItem = new FamilyTrip.Frontend.Models.PackingItemDto
+        {
+            Id = item.Id,
+            Name = item.Name,
+            IsPacked = item.IsPacked,
+            PackingListId = item.PackingListId
+        };
+    }
+
+    private void CancelEditItem()
+    {
+        editItem = null;
+    }
+
+    private async Task UpdatePackingItem(int id)
+    {
+        if (editItem != null)
+        {
+            var success = await PackingListService.UpdatePackingItemAsync(editItem);
+            if (success)
+            {
+                await LoadPackingLists();
+                editItem = null;
+            }
+        }
+    }
+
+    private async Task DeletePackingItem(int itemId, int listId)
+    {
+        var success = await PackingListService.DeletePackingItemAsync(itemId);
+        if (success)
+        {
+            await LoadPackingLists();
+        }
+    }
+}

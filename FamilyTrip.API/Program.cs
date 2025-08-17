@@ -8,11 +8,23 @@ using FamilyTrip.Infrastructure.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<FamilyTripDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add CORS for Blazor WASM dev server
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("https://localhost:7067") // Blazor dev server (matches launchSettings.json)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 // Repositories & Services
 builder.Services.AddScoped<ITripRepository, TripRepository>();
@@ -52,7 +64,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapControllers(); 
+// Enable CORS before controllers
+app.UseCors();
+
+// Serve static files (for Blazor)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
+app.MapControllers();
+
+// Fallback to index.html for client-side routing
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

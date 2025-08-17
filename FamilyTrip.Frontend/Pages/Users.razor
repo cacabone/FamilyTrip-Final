@@ -1,0 +1,128 @@
+@page "/users"
+@inject FamilyTrip.Frontend.Services.UserService UserService
+
+<PageTitle>Users</PageTitle>
+
+<h3>Users</h3>
+
+<button class="btn btn-primary mb-2" @onclick="ShowCreateUser">Create User</button>
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (users.Count == 0)
+{
+    <p>No users found.</p>
+}
+else
+{
+    <ul>
+        @foreach (var user in users)
+        {
+            <li>
+                @if (editUser != null && editUser.Id == user.Id)
+                {
+                    <input @bind="editUser.Name" placeholder="Name" />
+                    <input @bind="editUser.Email" placeholder="Email" />
+                    <button class="btn btn-success btn-sm" @onclick="@(() => UpdateUser(user.Id))">Save</button>
+                    <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Cancel</button>
+                }
+                else
+                {
+                    <span>@user.Name (@user.Email) (ID: @user.Id)</span>
+                    <button class="btn btn-warning btn-sm ms-2" @onclick="@(() => EditUser(user))">Edit</button>
+                    <button class="btn btn-danger btn-sm ms-1" @onclick="@(() => DeleteUser(user.Id))">Delete</button>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@if (showCreateForm)
+{
+    <div class="card p-3 mb-3">
+        <h5>Create User</h5>
+        <input @bind="newUser.Name" placeholder="Name" class="form-control mb-2" />
+        <input @bind="newUser.Email" placeholder="Email" class="form-control mb-2" />
+        <button class="btn btn-success" @onclick="CreateUser">Create</button>
+        <button class="btn btn-secondary ms-2" @onclick="HideCreateUser">Cancel</button>
+    </div>
+}
+
+@code {
+    private List<FamilyTrip.Frontend.Models.UserDto> users;
+    private FamilyTrip.Frontend.Models.UserDto newUser = new();
+    private FamilyTrip.Frontend.Models.UserDto? editUser;
+    private bool showCreateForm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        users = await UserService.GetUsersAsync();
+    }
+
+    private void ShowCreateUser()
+    {
+        showCreateForm = true;
+        newUser = new();
+    }
+
+    private void HideCreateUser()
+    {
+        showCreateForm = false;
+    }
+
+    private async Task CreateUser()
+    {
+        var created = await UserService.CreateUserAsync(newUser);
+        if (created != null)
+        {
+            await LoadUsers();
+            showCreateForm = false;
+        }
+    }
+
+    private void EditUser(FamilyTrip.Frontend.Models.UserDto user)
+    {
+        editUser = new FamilyTrip.Frontend.Models.UserDto
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            OrganizedTripIds = user.OrganizedTripIds ?? new List<int>(),
+            ParticipatingTripIds = user.ParticipatingTripIds ?? new List<int>()
+        };
+    }
+
+    private void CancelEdit()
+    {
+        editUser = null;
+    }
+
+    private async Task UpdateUser(int id)
+    {
+        if (editUser != null)
+        {
+            var success = await UserService.UpdateUserAsync(editUser);
+            if (success)
+            {
+                await LoadUsers();
+                editUser = null;
+            }
+        }
+    }
+
+    private async Task DeleteUser(int id)
+    {
+        var success = await UserService.DeleteUserAsync(id);
+        if (success)
+        {
+            await LoadUsers();
+        }
+    }
+}
